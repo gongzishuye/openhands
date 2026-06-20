@@ -1,0 +1,14 @@
+# 运行时状态 / 密钥 —— 绝不入库
+.openhands-state/
+*.key
+*.keys
+
+# 日志
+*.log
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# 空工作区(运行时挂载点)
+workspace/

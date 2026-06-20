@@ -1,0 +1,43 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><script>
+(function () {
+  var USER = sessionStorage.getItem('oh_user');
+  if (!USER && location.pathname !== '/login.html') { location.replace('/login.html'); return; }
+  if (!USER) return;
+  function sameOrigin(url) {
+    try { return new URL(url, location.href).origin === location.origin; } catch (e) { return false; }
+  }
+  var _fetch = window.fetch;
+  if (_fetch) {
+    window.fetch = function (input, init) {
+      init = init || {};
+      var url = (typeof input === 'string') ? input : (input && input.url) || '';
+      if (sameOrigin(url)) {
+        var h = new Headers(init.headers || (typeof input !== 'string' && input.headers) || {});
+        h.set('X-User-Id', USER);
+        init.headers = h;
+      }
+      return _fetch.call(this, input, init);
+    };
+  }
+  var _open = XMLHttpRequest.prototype.open;
+  var _send = XMLHttpRequest.prototype.send;
+  XMLHttpRequest.prototype.open = function (m, url) { this.__oh_same = sameOrigin(url); return _open.apply(this, arguments); };
+  XMLHttpRequest.prototype.send = function () {
+    if (this.__oh_same) { try { this.setRequestHeader('X-User-Id', USER); } catch (e) {} }
+    return _send.apply(this, arguments);
+  };
+  window.ohLogout = function () { sessionStorage.removeItem('oh_user'); location.replace('/login.html'); };
+})();
+</script><meta name="viewport" content="width=device-width, initial-scale=1"/><title>OpenHands</title><meta name="description" content="Let&#x27;s Start Building!"/><link rel="modulepreload" href="/assets/manifest-189b5eb0.js"/><link rel="modulepreload" href="/assets/entry.client-D-RhUPKE.js"/><link rel="modulepreload" href="/assets/chunk-6CSD65Y2-DRHfJluN.js"/><link rel="modulepreload" href="/assets/index-DbFyUWdF.js"/><link rel="modulepreload" href="/assets/custom-toast-handlers-CB7OAdge.js"/><link rel="modulepreload" href="/assets/open-hands-axios-wqcxygKy.js"/><link rel="modulepreload" href="/assets/query-client-config-BnuK44Zx.js"/><link rel="modulepreload" href="/assets/index-BcNCjPd1.js"/><link rel="modulepreload" href="/assets/query-keys-Ce-IATNL.js"/><link rel="modulepreload" href="/assets/index-BN5i2Jtp.js"/><link rel="modulepreload" href="/assets/preload-helper-BXl3LOEh.js"/><link rel="modulepreload" href="/assets/declaration-Dq3Mo6JG.js"/><link rel="modulepreload" href="/assets/mutation-BRA6k7Eo.js"/><link rel="modulepreload" href="/assets/infiniteQueryBehavior-ByemTUbN.js"/><link rel="modulepreload" href="/assets/root-Dfh5S7rB.js"/><link rel="modulepreload" href="/assets/use-invitation-u3Af4vlW.js"/><link rel="stylesheet" href="/assets/root-CGhJZaJy.css"/></head><body><script>
+              console.log(
+                "💿 Hey developer 👋. You can provide a way better UX than this " +
+                "when your app is loading JS modules and/or running `clientLoader` " +
+                "functions. Check out https://reactrouter.com/start/framework/route-module#hydratefallback " +
+                "for more information."
+              );
+            </script><script>window.__reactRouterContext = {"basename":"/","future":{"unstable_optimizeDeps":false,"v8_passThroughRequests":false,"v8_trailingSlashAwareDataRequests":false,"unstable_previewServerPrerendering":false,"v8_middleware":false,"v8_splitRouteModules":false,"v8_viteEnvironmentApi":false},"routeDiscovery":{"mode":"initial"},"ssr":false,"isSpaMode":true};window.__reactRouterContext.stream = new ReadableStream({start(controller){window.__reactRouterContext.streamController = controller;}}).pipeThrough(new TextEncoderStream());</script><script type="module" async="">import "/assets/manifest-189b5eb0.js";
+import * as route0 from "/assets/root-Dfh5S7rB.js";
+  
+  window.__reactRouterRouteModules = {"root":route0};
+
+import("/assets/entry.client-D-RhUPKE.js");</script><div data-rht-toaster="" style="position:fixed;z-index:9999;top:16px;left:16px;right:16px;bottom:16px;pointer-events:none"></div><div id="modal-portal-exit"></div><!--$--><script>window.__reactRouterContext.streamController.enqueue("[{\"_1\":2,\"_3\":-5,\"_4\":-5},\"loaderData\",{},\"actionData\",\"errors\"]\n");</script><!--$--><script>window.__reactRouterContext.streamController.close();</script><!--/$--><!--/$--></body></html>

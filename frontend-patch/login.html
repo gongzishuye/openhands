@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>登录 - OpenHands</title>
+<style>
+  body{font-family:sans-serif;display:flex;height:100vh;margin:0;align-items:center;justify-content:center;background:#0f1117;color:#e6e6e6}
+  .box{background:#1a1d27;padding:32px;border-radius:12px;width:300px;box-shadow:0 8px 32px rgba(0,0,0,.4)}
+  h2{margin:0 0 16px;font-size:20px}
+  input{width:100%;box-sizing:border-box;margin:8px 0;padding:10px;border-radius:6px;border:1px solid #333;background:#11131a;color:#fff;font-size:14px}
+  input:focus{outline:none;border-color:#4f7cff}
+  button{width:100%;padding:10px;margin-top:12px;border:0;border-radius:6px;background:#4f7cff;color:#fff;cursor:pointer;font-size:15px}
+  button:hover{background:#3f6cef}
+  .err{color:#ff6b6b;min-height:18px;font-size:13px;margin-top:8px}
+  .hint{color:#666;font-size:12px;margin-top:10px}
+</style></head><body>
+<div class="box">
+  <h2>OpenHands 登录</h2>
+  <input id="u" placeholder="用户名 (alice / bob)" autocomplete="username"/>
+  <input id="p" type="password" placeholder="密码" autocomplete="current-password"/>
+  <button id="go">登录</button>
+  <div class="err" id="err"></div>
+  <div class="hint">内部多用户环境</div>
+</div>
+<script>
+  var USERS = { alice: '123456', bob: '123456' };   // REQ-002，内部可信场景
+  // 已登录则直接进主应用，避免停留在登录页
+  if (sessionStorage.getItem('oh_user')) { location.replace('/'); }
+  function login() {
+    var u = document.getElementById('u').value.trim();
+    var p = document.getElementById('p').value;
+    if (USERS[u] && USERS[u] === p) {               // REQ-003
+      sessionStorage.setItem('oh_user', u);
+      location.replace('/');
+    } else {                                         // REQ-004
+      document.getElementById('err').textContent = '用户名或密码错误';
+    }
+  }
+  document.getElementById('go').onclick = login;
+  document.getElementById('p').addEventListener('keydown', function(e){ if(e.key==='Enter') login(); });
+  document.getElementById('u').addEventListener('keydown', function(e){ if(e.key==='Enter') document.getElementById('p').focus(); });
+</script>
+</body></html>
