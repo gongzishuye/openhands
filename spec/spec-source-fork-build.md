@@ -27,7 +27,7 @@ tags: [infrastructure, docker, fork, build, frontend, backend, multi-user, openh
 - Fork OpenHands 源码、建立 `upstream`/`origin` 远程与长期定制分支 `multiuser-deploy`。
 - 把现有 4 个后端 patch 的真实 delta 抽成补丁并入源码，组织为干净 commit。
 - 前端从"覆盖编译产物"迁移到源码改动（分两步：先求平价，再做正统）。
-- 在 **CI（GitHub Actions）或大内存机器**构建镜像并 push 到 registry；3.5G 机器只 pull 运行。
+- 在**一台大内存机器（≥8G）**手动构建镜像并 push 到 registry；3.5G 机器只 pull 运行。
 - 运行切换（去掉全部 6 挂载）与回滚。
 - 常态化上游升级流程。
 
@@ -48,7 +48,7 @@ tags: [infrastructure, docker, fork, build, frontend, backend, multi-user, openh
 | **定制分支** | `multiuser-deploy`，基于基线 commit 拉出，承载所有自有改动（可 rebase 的 commit 栈）。 |
 | **后端 delta** | 4 个 py 文件相对上游的真实改动，共 +100/-10 行（见 §7 表）。 |
 | **自构建镜像** | 由 fork 源码构建的镜像，如 `ghcr.io/gongzishuye/openhands-custom:96eea1b-mu1`。 |
-| **构建机** | CI（GitHub Actions）或 ≥8G 内存机器；**不是** 3.5G 生产机。 |
+| **构建机** | 大内存机器（≥8G）；**不是** 3.5G 生产机。可为云上临时实例或本地 PC。 |
 | **生产机** | 腾讯云 `43.162.100.45`（3.5G/2vCPU），只 pull + run 镜像。 |
 
 ## 3. Requirements, Constraints & Guidelines
@@ -58,13 +58,13 @@ tags: [infrastructure, docker, fork, build, frontend, backend, multi-user, openh
 - **REQ-002**：基于基线 commit `96eea1b` 拉出长期分支 `multiuser-deploy`；`main` 跟随上游、不直接提交。
 - **REQ-003**：把 4 个后端 patch 的 delta 抽成 4 个 unified `.patch`，在 `multiuser-deploy` 上 `git apply` 并提交为逻辑 commit（后端隔离）。
 - **REQ-004**：前端改动并入 `frontend/` 源码或经构建后覆盖产物，最终行为与现挂载方案一致（alice/bob 登录、X-User-Id 注入）。
-- **REQ-005**：镜像在构建机（CI/大机器）构建，push 到 registry；产物带可追溯 tag（含上游基线标识）。
+- **REQ-005**：镜像在大内存机器（≥8G）手动构建，push 到 registry；产物带可追溯 tag（含上游基线标识）。
 - **REQ-006**：生产机用自构建镜像启动 app-server，**去掉全部 6 个 patch 挂载**；其余 env/端口/卷/`gateway.py` 不变。
 - **REQ-007**：提供上游升级的 rebase + 重构建 + 切换流程（§9.4）。
 
 ### 约束
 - **CON-001**：改动以**源码 commit** 形式存在，不得回退到"运行时挂载整文件"——否则失去本方案意义。
-- **CON-002**：**禁止在 3.5G 生产机构建前端**（`react-router build` 极可能 OOM）。构建只在 CI 或 ≥8G 机器进行。
+- **CON-002**：**禁止在 3.5G 生产机构建前端**（`react-router build` 极可能 OOM）。构建只在大内存机器（≥8G）进行。
 - **CON-003**：原镜像 `ghcr.io/openhands/openhands:latest`（基线）与 `frontend-patch/`、`patches/` **必须保留**——回滚到挂载方案的基础（见 [`spec-infrastructure-derived-image-frontend.md`](spec-infrastructure-derived-image-frontend.md) §4.4）。
 - **CON-004**：定制分支基于**固定 commit**而非滚动 `main` / `latest`——`:latest` 跟 main 滚动，"最新"≠"线上版"，升级须主动选基线。
 - **CON-005**：fork 仓库名**不能**叫 `openhands`（GitHub 仓名大小写不敏感，与补丁仓 `gongzishuye/openhands` 冲突）——用 `OpenHands-custom`。
@@ -78,7 +78,7 @@ tags: [infrastructure, docker, fork, build, frontend, backend, multi-user, openh
 
 ### 模式
 - **PAT-001**：Fork + 长期定制分支 + 周期性 rebase——业界维护"带自有改动的上游软件"的标准做法。
-- **PAT-002**：构建/运行分离——重构建放 CI/大机器，低配生产机只 pull 运行。
+- **PAT-002**：构建/运行分离——重构建放大内存机器，低配生产机只 pull 运行。
 
 ## 4. Interfaces & Data Contracts
 
@@ -117,7 +117,7 @@ multiuser-deploy  ← 基于基线 commit 96eea1b，承载所有自有改动
 | 项 | 值 |
 |---|---|
 | Dockerfile | 上游 `containers/app/Dockerfile`（三段式：node 构建前端 → poetry 装后端 → 组装）；改动已在源码，无需改 Dockerfile |
-| 构建位置 | GitHub Actions 或 ≥8G 机器（CON-002） |
+| 构建位置 | 大内存机器（≥8G），非生产机（CON-002） |
 | 镜像名:tag | `ghcr.io/gongzishuye/openhands-custom:<上游基线>-mu<版本>`，如 `96eea1b-mu1` |
 | 构建命令 | `docker build -f containers/app/Dockerfile -t <镜像:tag> --build-arg OPENHANDS_BUILD_VERSION=96eea1b-mu1 .` |
 | 分发 | `docker push` 到 registry；生产机 `docker pull` |
@@ -160,9 +160,9 @@ docker run -d --restart unless-stopped \
 ## 6. Test Automation Strategy
 
 - **Test Levels**：补丁应用验证 + 构建验证 + 部署冒烟 + 端到端手验 + 升级演练。
-- **Frameworks**：`git apply --check`、`docker build`、`docker inspect`、`curl`、浏览器；CI 用 GitHub Actions。
+- **Frameworks**：`git apply --check`、`docker build`、`docker inspect`、`curl`、浏览器。
 - **Test Data**：测试用户 alice/bob；测试后清理会话 + sandbox（见 ../docs/current/architecture.md §9.7）。
-- **CI/CD**：构建与 push 在 GitHub Actions；可复用/裁剪上游 `.github/workflows` 的 app 镜像构建。
+- **CI/CD**：本期不用 CI；在大内存机器手动 `docker build` + `docker push`。（后续若需自动化可再引入 GitHub Actions。）
 - **Coverage**：覆盖 §5 全部 AC。
 - **Performance**：构建耗时与内存在构建机度量（前端 build 为瓶颈）；运行时性能与官方镜像一致。
 
@@ -184,7 +184,7 @@ commit `96eea1b` 提交信息 "fix: bump agent-server to 1.27.1 for Gemini cache
 - 后端 delta 极小（+100/-10），rebase 几乎无冲突；前端冲突量随定制深度增长，用 GUD-001 的"新增文件 + 开关"纪律压制。
 
 ### 7.3 为什么构建/运行分离
-上游 Dockerfile 前端段 `npm ci && react-router build` 是内存大户，3.5G/2vCPU 生产机大概率 OOM。CI/大机器构建 + 生产机只 pull，既绕开 OOM 又得到可分发镜像。
+上游 Dockerfile 前端段 `npm ci && react-router build` 是内存大户，3.5G/2vCPU 生产机大概率 OOM。大内存机器构建 + 生产机只 pull，既绕开 OOM 又得到可分发镜像。
 
 ### 7.4 为什么功能零差异
 源码改动落点 = 现挂载覆盖的同一批文件路径；前端最终产物与现 `frontend-patch/` 一致。app-server 看到的字节一致 → 行为一致。
@@ -194,7 +194,7 @@ commit `96eea1b` 提交信息 "fix: bump agent-server to 1.27.1 for Gemini cache
 - **EXT-001**：`github.com/OpenHands/OpenHands`（upstream 源码）。
 - **EXT-002**：`github.com/gongzishuye/OpenHands-custom`（fork）。
 - **EXT-003**：容器 registry（建议 GHCR `ghcr.io/gongzishuye/...`）——镜像分发。
-- **INF-001**：构建机（GitHub Actions runner 或 ≥8G 机器），Node 22 + Python 3.13 + poetry 2.3.4 + Docker。
+- **INF-001**：构建机（大内存机器 ≥8G），Node 22 + Python 3.13 + poetry 2.3.4 + Docker。
 - **INF-002**：生产机 Docker（仅 pull + run）。
 - **INF-003**：`gateway.py` 宿主进程（:8000）—— 不变，仍需运行。
 - **INF-004**：`.openhands-state` 持久卷（含 settings.json 的 GROUP_BY_NEWEST）—— 不变。
@@ -227,9 +227,10 @@ git apply <补丁>
 git add -A && git commit -m "backend: multi-user isolation (user_auth/sandbox/conversation)"
 ```
 
-### 9.3 阶段 3 — 构建（CI 或大机器）+ push
+### 9.3 阶段 3 — 构建（大内存机器 ≥8G）+ push
 
 ```bash
+echo "<GHCR_TOKEN>" | docker login ghcr.io -u gongzishuye --password-stdin
 docker build -f containers/app/Dockerfile \
   -t ghcr.io/gongzishuye/openhands-custom:96eea1b-mu1 \
   --build-arg OPENHANDS_BUILD_VERSION=96eea1b-mu1 .
@@ -258,7 +259,7 @@ git rebase --onto <新基线> 96eea1be4774f841c7685e95042c4b5a2afa43e1 multiuser
 | 情况 | 处理 |
 |---|---|
 | 补丁 `git apply` 有 reject | 说明基线选错（非 `96eea1b`）；核对 commit 后重试 |
-| 前端构建 OOM | 违反 CON-002——挪到 CI/大机器；不要在生产机 build |
+| 前端构建 OOM | 违反 CON-002——挪到大内存机器（≥8G）；不要在生产机 build |
 | 上游大改了 4 文件之一 | rebase 时手动解冲突；delta 小，对照 §4.2 重打 |
 | fork 名用了 `openhands` | 与补丁仓冲突（CON-005）；用 `OpenHands-custom` |
 | 误把镜像 build 进 :latest 漂移 | tag 固定含上游基线 hash（GUD-003），不要依赖 `latest` |
