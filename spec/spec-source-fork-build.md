@@ -16,7 +16,9 @@ tags: [infrastructure, docker, fork, build, frontend, backend, multi-user, openh
 
 ## 1. Purpose & Scope
 
-**目的**：
+**核心目标（本期）**：**复现等价**——从 fork 源码构建出一份镜像，使其行为/内容与**当前正在运行的版本**（官方 `96eea1b` 基线 + 4 后端 patch + 2 前端文件）**完全一致**，作为后续定制的受信基线。本期不引入任何"对齐既有改动之外"的新行为；先证明"源码能复现现网"，再谈演进。
+
+**后续阶段目标**（非本期，依赖核心目标先达成）：
 - 用一份**自构建、版本化、自包含**的镜像替代"官方镜像 + 6 挂载"，运行时零 patch 挂载。
 - 改动以源码形式存在于 fork，**可随上游升级 rebase**，而非每次升级重抠整文件 patch。
 - 为前端深度定制（改源码而非覆盖编译产物）提供工程基线。
@@ -144,6 +146,7 @@ docker run -d --restart unless-stopped \
 
 ## 5. Acceptance Criteria
 
+- **AC-000（等价性，本期核心）**：源码构建镜像内 `openhands/` 与 `frontend/build/`，**除 §4.2/§4.3 列出的 6 处已知改动外**，与官方基线镜像 `ghcr.io/openhands/openhands@sha256:369c14ab1ad80dd7dd1d18a00dbbe14869070baba7773a864303ff25174b260b`（commit `96eea1b`）的对应文件 **diff 为空**；且 alice/bob 端到端行为与现网完全一致。此为本期"复现等价"目标的硬判据，未达成不进入后续阶段。
 - **AC-001**：Fork 与远程就绪——`git remote -v` 见 `origin`(fork) 与 `upstream`(OpenHands)；`multiuser-deploy` 基于 `96eea1b`。
 - **AC-002**：4 个后端补丁在 `multiuser-deploy` 上干净 `git apply`，无 reject；`git diff` 改动量与 §4.2 一致。
 - **AC-003**：构建机 `docker build` 成功；镜像 push 到 registry 且可被生产机 pull。
